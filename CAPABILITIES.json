@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.0",
+  "project": "boss-recruit-agent",
+  "version": "0.1.0",
+  "checked_at": "2026-10-04T14:06:31.175989+00:00",
+  "status": "local_implementation_verified_real_integration_pending",
+  "environment": {
+    "os": "Linux",
+    "python": "3.12.14"
+  },
+  "tests": {
+    "backend": {
+      "passed": 55,
+      "method": "pytest",
+      "includes_synthetic_fixtures": true
+    },
+    "frontend": {
+      "passed_steps": 9,
+      "method": "jsdom DOM with real HTTP API; no pixel rendering"
+    },
+    "mcp": {
+      "official_sdk_stdio_passed": true,
+      "actual_workbuddy_client_passed": false,
+      "actual_zcode_client_passed": false,
+      "real_ai_invoked": false
+    },
+    "installed_dependencies": {
+      "count": 45,
+      "compatibility_check_passed": true
+    }
+  },
+  "harnesses": {
+    "dsh": {
+      "adapter_implemented": true,
+      "installed": false,
+      "real_batch_passed": false,
+      "unattended_accepted": false
+    },
+    "codex": {
+      "adapter_implemented": true,
+      "installed": true,
+      "observed_version": "0.159.2",
+      "real_batch_passed": false,
+      "real_batch_result": "HARNESS_TIMEOUT",
+      "batch_timeout_seconds": 300,
+      "minimal_json_timeout_seconds": 30,
+      "timeout_cause": "unresolved",
+      "unattended_accepted": false
+    },
+    "opencode": {
+      "adapter_implemented": true,
+      "installed": false,
+      "real_batch_passed": false,
+      "tools_configuration_verified": false,
+      "unattended_accepted": false
+    },
+    "workbuddy": {
+      "integration": "MCP",
+      "protocol_server_verified": true,
+      "actual_product_verified": false,
+      "headless_cli_implemented": false,
+      "unattended_accepted": false
+    },
+    "zcode": {
+      "integration": "MCP",
+      "protocol_server_verified": true,
+      "actual_product_verified": false,
+      "headless_cli_implemented": false,
+      "unattended_accepted": false
+    }
+  },
+  "boss": {
+    "adapter_implemented": true,
+    "installed": false,
+    "real_account_verified": false,
+    "real_collection_passed": false,
+    "field_mapping_verified_for_account": false,
+    "stable_current_account_id_available_from_locked_cli": false,
+    "actions_currently_blocked": true,
+    "pinned_commit": "74754f5ba368450d71e769abfec76c98709e593f"
+  },
+  "runtime_observation": {
+    "duration_seconds": 0,
+    "heartbeats": 0,
+    "maximum_gap_seconds": null,
+    "runtime_24h_observed": false,
+    "real_platform_24h_accepted": false
+  },
+  "defaults": {
+    "harness_enabled": false,
+    "live_collection_enabled": false,
+    "send_enabled": false,
+    "primary_harness": "dsh",
+    "batch_size": 10
+  },
+  "remaining": [
+    "boss stable account identity and real field mapping",
+    "actual DSH or WorkBuddy ten-person scoring",
+    "independent resume fetch failure retries",
+    "actual continuous 24h real integration run",
+    "scanned PDF and Canvas full-resume OCR",
+    "actual browser and Windows/macOS startup validation"
+  ]
+}

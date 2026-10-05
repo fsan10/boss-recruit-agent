@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+from contextlib import closing
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -15,15 +16,24 @@ class Database:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         if os.name != "nt":
             self.path.parent.chmod(0o700)
-        with self.connect() as con:
+        with closing(self.connect()) as con:
             con.execute("PRAGMA journal_mode=WAL")
             con.execute("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY)")
             for migration in sorted((ROOT / "migrations").glob("*.sql")):
-                if not con.execute("SELECT 1 FROM schema_migrations WHERE version=?", (migration.name,)).fetchone():
-                    # Migrations and their version marker commit together; interruption rolls back all DDL.
-                    sql = migration.read_text(encoding="utf-8")
-                    con.executescript("BEGIN IMMEDIATE;\n" + sql +
-                                      "\nINSERT INTO schema_migrations VALUES ('" + migration.name + "');\nCOMMIT;")
+                con.execute("BEGIN IMMEDIATE")
+                try:
+                    if not con.execute("SELECT 1 FROM schema_migrations WHERE version=?", (migration.name,)).fetchone():
+                        statement = ""
+                        for line in migration.read_text(encoding="utf-8").splitlines(True):
+                            statement += line
+                            if sqlite3.complete_statement(statement):
+                                con.execute(statement)
+                                statement = ""
+                        con.execute("INSERT INTO schema_migrations VALUES (?)", (migration.name,))
+                    con.commit()
+                except BaseException:
+                    con.rollback()
+                    raise
         if os.name != "nt":
             self.path.chmod(0o600)
 
@@ -48,11 +58,11 @@ class Database:
             con.close()
 
     def all(self, sql, args=()):
-        with self.connect() as con:
+        with closing(self.connect()) as con:
             return [dict(r) for r in con.execute(sql, args).fetchall()]
 
     def one(self, sql, args=()):
-        with self.connect() as con:
+        with closing(self.connect()) as con:
             row = con.execute(sql, args).fetchone()
             return dict(row) if row else None
 

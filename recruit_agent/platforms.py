@@ -140,7 +140,7 @@ class BossAgentCliAdapter:
             raise DomainError("IDENTITY_UNVERIFIED", "当前登录账号与绑定账号不一致。")
         return expected
 
-    def collect(self, account_id, job_id, channel="applications", page=1):
+    def collect(self, account_id, job_id, channel="applications", page=1, offset=0):
         job = self.s.get_job(job_id)
         if job["is_synthetic"] or not job["active"] or not job["platform_job_id"]:
             raise DomainError("JOB_NOT_READY", "真实采集需要已审核启用的真实岗位与平台职位 ID。")
@@ -162,7 +162,7 @@ class BossAgentCliAdapter:
         if not isinstance(records, list):
             raise DomainError("FIELD_MAPPING_REQUIRED", "候选人列表字段与当前配置不同，请按脱敏响应调整字段映射。")
         imported, errors = [], []
-        for record in records[:10]:
+        for record in records[offset:offset+10]:
             try:
                 pid = opaque(at_path(record, mapping["platform_id"]))
                 geek = opaque(at_path(record, mapping["geek_id"]))
@@ -192,13 +192,16 @@ class BossAgentCliAdapter:
                 if error.code in STOP_CODES:
                     raise
         # More than ten records need a continuation; do not silently skip the unprocessed tail.
+        blocking = next((e for e in errors if e["code"] in {"FIELD_MAPPING_REQUIRED", "IDENTITY_UNVERIFIED"}), None)
+        if not imported and blocking:
+            raise DomainError(blocking["code"], blocking["message"])
         has_more = bool(data.get("hasMore") or (envelope.get("pagination") or {}).get("has_more"))
-        if len(records) > 10:
-            has_more = True
+        tail = offset + 10 < len(records)
         with self.s.db.transaction() as con:
             con.execute("UPDATE accounts SET status='CONNECTED_READ_ONLY',last_success=?,pause_reason=NULL WHERE account_id=?", (now(), account_id))
             Database.audit(con, account_id, "platform_read", {"imported": len(imported), "errors": errors, "channel": channel, "page": page})
-        return {"imported": imported, "errors": errors, "has_more": has_more, "next_page": page+1 if has_more else 1}
+        return {"imported": imported, "errors": errors, "has_more": has_more or tail,
+                "next_page": page if tail else page+1 if has_more else 1, "next_offset": offset+10 if tail else 0}
 
     def refresh_locator(self, action):
         self.verify_account(action["account_id"])
@@ -226,12 +229,40 @@ class BossAgentCliAdapter:
         raise DomainError("ACTION_EXPIRED", "没有在刷新结果中找到同一候选人，请在官方页面核验。")
 
     def download_attachment(self, action, attachment_message_id):
+        mid = opaque(attachment_message_id)
+        import_key = "attachment:" + action["candidate_id"] + ":" + mid
+        previous = self.s.db.one("SELECT result FROM imports WHERE import_key=?", (import_key,))
+        if previous:
+            return {**json.loads(previous["result"]), "replayed": True, "attachment_message_id": mid}
         locator = self.refresh_locator(action)
         friend = opaque(locator.get("friend_id"))
+        history = self.call(["hr", "chatmsg", friend], action["account_id"])["data"]
+        messages = history.get("messages", []) if isinstance(history, dict) else []
+        message = next((m for m in messages if str(m.get("mid") or m.get("msgId")) == mid), None)
+        body = (message or {}).get("body", {})
+        link = body.get("hyperLink", {}) if isinstance(body, dict) else {}
+        if link.get("hyperLinkType") not in {1, 9}:
+            raise DomainError("ATTACHMENT_NOT_SHARED", "该消息不是已共享附件卡片；不能把简历请求消息当作附件。")
+        filename = link.get("fileName") or body.get("fileName") or message.get("fileName") or ""
+        extension = Path(str(filename)).suffix.lower()
+        if extension not in {".pdf", ".docx", ".png", ".jpg", ".jpeg"}:
+            raise DomainError("FIELD_MAPPING_REQUIRED", "附件卡片缺少可核验文件类型，需校准当前响应字段。")
         folder = self.s.runtime / "attachments"
         folder.mkdir(mode=0o700, exist_ok=True)
-        # Upstream identifies the file format; caller must select the actual permitted extension.
-        raise DomainError("CAPABILITY_UNAVAILABLE", "附件下载需先核验附件消息及文件扩展名；可使用安装说明中的显式下载并从工作台导入。")
+        output = folder / (action["candidate_id"] + "-" + uid("attachment") + extension)
+        self.call(["hr", "download-resume", friend, "--message-id", mid, "--output", str(output)], action["account_id"])
+        if not output.is_file() or output.is_symlink():
+            raise DomainError("ATTACHMENT_DOWNLOAD_FAILED", "CLI 未生成预期的本地文件。")
+        from .resumes import parse_file, MAX_FILE_SIZE
+        with output.open("rb") as stream:
+            content = stream.read(MAX_FILE_SIZE + 1)
+        parsed = parse_file(content, output.name)
+        candidate = self.s.batch_candidate(action["candidate_id"], action["job_id"])
+        candidate["snapshot"] = make_snapshot(parsed["text"], parsed["completeness"], parsed["issues"], parsed["pages"])
+        job = self.s.get_job(action["job_id"])
+        batch = {"schema_version":"1.0","batch_id":uid("attachment-import"),"parent_batch_id":None,**{k:job[k] for k in BINDINGS},"mode":"live","created_at":iso(),"candidates":[candidate]}
+        result = self.s.import_batch(batch,import_key,verified_identity={action["candidate_id"]:locator["platform_id"]},locators={action["candidate_id"]:locator})
+        return {**result,"attachment_message_id":mid,"completeness":parsed["completeness"]}
 
 
 class BrowserSessionProvider:

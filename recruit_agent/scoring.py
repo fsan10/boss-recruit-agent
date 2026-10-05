@@ -63,6 +63,8 @@ def validate_member(job, candidate, member):
     prose += [t for x in member["criteria"] for t in x["missing_information"]]
     if any(URL.search(t) for t in prose):
         raise DomainError("ACTION_URL_INVALID", "模型不得创建或返回外部链接。")
+    if any(FORBIDDEN.search(t) for t in prose):
+        raise DomainError("EXCLUDED_ATTRIBUTE", "评估摘要、缺口或沟通内容涉及评分排除属性。")
     return member
 
 
@@ -137,9 +139,9 @@ def assess_envelope(job, batch, envelope):
     return successes, errors
 
 
-def native_codex_schema():
+def native_codex_schema(source=None):
     """Codex structured outputs accept the structural subset; full business schema runs afterward."""
-    schema = copy.deepcopy(SCHEMAS["evaluation"])
+    schema = copy.deepcopy(source or SCHEMAS["evaluation"])
     def visit(node):
         if isinstance(node, dict):
             for key in ("$schema", "$id", "title", "allOf", "pattern", "minItems", "maxItems", "minimum", "maximum", "minLength"):

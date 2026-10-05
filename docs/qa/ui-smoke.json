@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "method": "jsdom DOM with real local API; no pixel rendering",
+  "steps": [
+    "overview and worker heartbeat",
+    "ten candidate rows and independent IDs",
+    "fixture badge and original evidence anchor",
+    "human correction with retained original",
+    "MCP settings and version update",
+    "JD draft and editable rubric",
+    "plain-text import and HTML escaping",
+    "task history and member status",
+    "draft-only outbox"
+  ],
+  "errors": []
+}

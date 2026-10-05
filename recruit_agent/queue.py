@@ -32,6 +32,12 @@ class Queue:
         t = now() if clock is None else clock
         with self.db.transaction() as con:
             self.recover(con, maximum, t)
+            # One scoring conversation across daemon and MCP, and one collector on this single host.
+            kinds = ("score", "rubric") if kind in {"score", "rubric"} else ("collect",) if kind == "collect" else ()
+            if kinds:
+                placeholders = ",".join("?" for _ in kinds)
+                if con.execute(f"SELECT 1 FROM tasks WHERE kind IN ({placeholders}) AND state='RUNNING' AND lease_until>?", (*kinds, t)).fetchone():
+                    return None
             sql = "SELECT * FROM tasks WHERE kind=? AND state IN ('READY','RETRY') AND next_run_at<=?"
             args = [kind, t]
             if object_id:
@@ -65,6 +71,9 @@ class Queue:
             state = "BLOCKED" if pause else ("FAILED" if row["attempts"] >= maximum else "RETRY")
             delay = delay if delay is not None else (30, 120, 300)[min(row["attempts"] - 1, 2)]
             data = error.as_dict() if isinstance(error, DomainError) else error
+            if data.get("code") == "BUDGET_EXHAUSTED":
+                state = "BLOCKED"
+                delay = max(0, data.get("details", {}).get("resumes_at", now() + 86400) - now())
             con.execute("UPDATE tasks SET state=?,next_run_at=?,error=?,lease_token=NULL,lease_until=NULL WHERE task_id=?",
                         (state, now() + delay, canonical(data), row["task_id"]))
             if row["kind"] == "score":

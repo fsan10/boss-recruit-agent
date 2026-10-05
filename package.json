@@ -1,0 +1,16 @@
+{
+  "name": "boss-recruit-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Optional DOM integration tests; the production frontend needs no Node build",
+  "scripts": {
+    "test": "node scripts/ui_smoke.cjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "jsdom": "30.1.2"
+  }
+}

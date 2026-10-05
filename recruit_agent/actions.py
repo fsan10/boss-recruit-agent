@@ -39,6 +39,11 @@ class ActionBroker:
         if digest({"text": item["text"], "candidate_id": item["candidate_id"], "job_id": item["job_id"]}) != item["text_hash"]:
             raise DomainError("APPROVAL_SCOPE_CHANGED", "批准后内容发生变化。", status=409)
         action = self.s.db.one("SELECT * FROM action_targets WHERE action_id=?", (item["action_id"],))
+        candidate = self.s.db.one("SELECT * FROM candidates WHERE candidate_id=?", (item["candidate_id"],))
+        if not candidate or candidate["synthetic"] or not candidate["platform_id"] or not candidate["identity_verified"] or self.s.get_job(item["job_id"])["is_synthetic"]:
+            raise DomainError("IDENTITY_UNVERIFIED", "发送前必须核验真实候选人与岗位。")
+        if not action or action["candidate_id"] != candidate["candidate_id"] or action["job_id"] != item["job_id"] or action["account_id"] != candidate["account_id"]:
+            raise DomainError("IDENTITY_UNVERIFIED", "批准目标与动作所属身份不一致。")
         locator = self.adapter.refresh_locator(action)
         friend = opaque(locator.get("friend_id"))
         with self.s.db.transaction() as con:

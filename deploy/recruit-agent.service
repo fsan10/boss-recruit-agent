@@ -1,0 +1,19 @@
+[Unit]
+Description=Local recruiting workbench and persistent worker
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Replace the project path and load only approved model environment variables.
+WorkingDirectory=/ABSOLUTE/PATH/boss-recruit-agent
+ExecStart=/ABSOLUTE/PATH/boss-recruit-agent/.venv/bin/python -m recruit_agent serve --runtime /ABSOLUTE/PATH/boss-recruit-agent/runtime
+EnvironmentFile=-%h/.config/recruit-agent/model.env
+Restart=always
+RestartSec=10
+KillMode=control-group
+TimeoutStopSec=30
+UMask=0077
+
+[Install]
+WantedBy=default.target

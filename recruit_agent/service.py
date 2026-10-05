@@ -5,7 +5,7 @@ import csv
 import io
 import json
 import re
-from datetime import datetime
+from datetime import datetime, time as day_time, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo
@@ -43,8 +43,23 @@ class Service:
     def update_config(self, config):
         # Whitelist the shape rather than storing arbitrary executable argument injection.
         default = read_json(ROOT / "config" / "default.json")
-        if set(config) != set(default) or any(set(config[k]) != set(default[k]) for k in default if isinstance(default[k], dict)):
+        if not isinstance(config, dict) or set(config) != set(default) or any(
+            not isinstance(config[k], dict) or set(config[k]) != set(default[k])
+            for k in default if isinstance(default[k], dict)
+        ):
             raise DomainError("INPUT_INVALID", "配置字段不完整或含未知字段。")
+        def typed(actual, expected):
+            if isinstance(expected, dict):
+                return isinstance(actual, dict) and set(actual) == set(expected) and all(typed(actual[k], v) for k, v in expected.items())
+            if isinstance(expected, bool):
+                return type(actual) is bool
+            if isinstance(expected, int):
+                return type(actual) is int
+            if isinstance(expected, float):
+                return type(actual) in {int, float}
+            return isinstance(actual, type(expected))
+        if not typed(config, default):
+            raise DomainError("INPUT_INVALID", "配置中的类型不合法。")
         h, p, q = config["harness"], config["platform"], config["queue"]
         if h["primary"] not in {"dsh", "codex", "opencode", "mcp"}:
             raise DomainError("INPUT_INVALID", "请选择 DSH、Codex、OpenCode 或 MCP。")
@@ -54,7 +69,7 @@ class Service:
             raise DomainError("INPUT_INVALID", "续租间隔应短于租约的一半。")
         if not 1 <= h["max_runs_per_day"] <= 1000 or not 15 <= h["timeout_seconds"] <= 3600 or h["context_tokens"] < 8000:
             raise DomainError("INPUT_INVALID", "评分预算、上下文或超时配置不合法。")
-        if not 0 < h["context_budget_ratio"] <= .7 or not 3 <= p["min_read_interval_seconds"] or p["poll_seconds"] < 30:
+        if not 0 < h["context_budget_ratio"] <= .7 or not 3 <= p["min_read_interval_seconds"] <= 30 or not 30 <= p["poll_seconds"] <= 86400:
             raise DomainError("INPUT_INVALID", "上下文比例或采集间隔不合法。")
         if not 1 <= p["operation_budget_per_day"] <= 300 or not 1 <= p["new_resume_budget_per_day"] <= 60:
             raise DomainError("INPUT_INVALID", "平台初版日预算上限为 300 次操作、60 份新详情。")
@@ -65,7 +80,7 @@ class Service:
         with self.db.transaction() as con:
             self.db.set_setting("config", config, con)
             self.db.set_setting("harness_pause", None, con)
-            con.execute("UPDATE tasks SET state='RETRY',next_run_at=? WHERE kind='score' AND state='BLOCKED'", (now(),))
+            con.execute("UPDATE tasks SET state='RETRY',next_run_at=? WHERE kind IN ('score','rubric') AND state='BLOCKED' AND error NOT LIKE '%CONTEXT_LIMIT%'", (now(),))
             Database.audit(con, "config", "config_updated", {"profile_version": self.profile_version(config)}, "workbench")
         return {"config": config, "profile_version": self.profile_version(config)}
 
@@ -111,6 +126,12 @@ class Service:
             con.execute("UPDATE jobs SET profile=?,active=1,platform_job_id=? WHERE job_id=?",
                         (canonical(clean), platform_job_id or current["platform_job_id"], job_id))
             self.save_rubric(con, clean)
+            superseded = con.execute("SELECT batch_id FROM evaluation_batches WHERE job_id=? AND state IN ('READY','RETRY','BLOCKED','PARTIAL') AND (json_extract(profile,'$.jd_version')<>? OR json_extract(profile,'$.rubric_version')<>? OR json_extract(profile,'$.scorer_profile_version')<>?)", (job_id, clean["jd_version"], clean["rubric_version"], clean["scorer_profile_version"])).fetchall()
+            for old_batch in superseded:
+                con.execute("UPDATE tasks SET state='CANCELLED' WHERE kind='score' AND object_id=? AND state!='RUNNING'", (old_batch[0],))
+                con.execute("UPDATE evaluation_batches SET state='CANCELLED' WHERE batch_id=?", (old_batch[0],))
+                con.execute("UPDATE batch_members SET state='SUPERSEDED' WHERE batch_id=? AND state!='COMPLETED'", (old_batch[0],))
+            con.execute("DELETE FROM pending_evaluations WHERE job_id=? AND batch_id IS NULL AND (json_extract(profile,'$.jd_version')<>? OR json_extract(profile,'$.rubric_version')<>? OR json_extract(profile,'$.scorer_profile_version')<>?)", (job_id, clean["jd_version"], clean["rubric_version"], clean["scorer_profile_version"]))
             Database.audit(con, job_id, "rubric_approved", {k: clean[k] for k in BINDINGS}, actor)
         # Re-evaluate under a new version without deleting original judgments.
         for row in self.db.all("SELECT c.candidate_id FROM candidates c JOIN candidate_jobs cj ON cj.candidate_id=c.candidate_id WHERE cj.job_id=?", (job_id,)):
@@ -319,7 +340,10 @@ class Service:
         # Identity labels and external locators are intentionally excluded from the model prompt.
         return {"task_id": task["task_id"], "lease_token": task["lease_token"], "fencing_token": task["fencing_token"],
                 "lease_until": task["lease_until"], "attempt": task["attempts"], "batch": batch, "job": json.loads(row["profile"]),
-                "instructions": (ROOT / "prompts" / "evaluate_batch.md").read_text(encoding="utf-8")}
+                "evaluation_schema": read_json(ROOT / "contracts" / "evaluation.schema.json"),
+                "instructions": (ROOT / "prompts" / "evaluate_batch.md").read_text(encoding="utf-8")
+                .replace("{{JOB_JSON}}", "使用本次响应的 job 对象。")
+                .replace("{{BATCH_JSON}}", "使用本次响应的 batch 对象。")}
 
     def submit(self, batch_id, token, fence, envelope, metadata=None, task_id=None):
         row = self.db.one("SELECT * FROM evaluation_batches WHERE batch_id=?", (batch_id,))
@@ -352,6 +376,8 @@ class Service:
                         self._draft(con, cid, job["job_id"], evaluation["message_draft"])
                 con.execute("UPDATE batch_members SET state='COMPLETED',error=NULL,run_id=? WHERE batch_id=? AND candidate_id=?", (run_id, batch_id, cid))
                 Database.audit(con, run_id, "evaluation_published", {"route": score["route"], "harness": meta.get("harness")})
+            if successes and meta.get("verification") == "real_cli_execution":
+                self.db.set_setting("harness_last_success", {"timestamp": now(), "batch_id": batch_id, "harness": meta.get("harness"), "profile_version": job["scorer_profile_version"]}, con)
             failed = task["attempts"] >= self.config["queue"]["max_attempts"]
             for cid, error in errors.items():
                 con.execute("UPDATE batch_members SET state=?,error=? WHERE batch_id=? AND candidate_id=?", ("FAILED" if failed else "PENDING", canonical(error), batch_id, cid))
@@ -369,10 +395,14 @@ class Service:
         for member in self.db.all("SELECT * FROM batch_members WHERE batch_id=? ORDER BY candidate_id", (batch_id,)):
             c = next(c for c in batch["candidates"] if c["candidate_id"] == member["candidate_id"])
             run = self.db.one("SELECT * FROM evaluation_runs WHERE run_id=?", (member["run_id"],)) if member["run_id"] else None
+            if run:
+                current = self.db.one("SELECT er.* FROM current_scores cs JOIN evaluation_runs er ON er.run_id=cs.run_id WHERE cs.eval_key=?", (run["eval_key"],))
+                run = current or run
             report.append({"candidate_id": c["candidate_id"], "candidate_label": c["candidate_label"], "state": member["state"],
                            "error": json.loads(member["error"]) if member["error"] else None, "actions": self.actions(c["candidate_id"], batch["job_id"]),
                            "evaluation": json.loads(run["evaluation"]) if run else None, "score": json.loads(run["score"]) if run else None,
-                           "harness_metadata": json.loads(run["metadata"]) if run else None})
+                           "harness_metadata": json.loads(run["metadata"]) if run else None,
+                           "run_id": run["run_id"] if run else None})
         return {"batch_id": batch_id, "parent_batch_id": row["parent_batch_id"], **{k: batch[k] for k in BINDINGS},
                 "mode": batch["mode"], "state": row["state"], "total": len(report), "completed": sum(r["state"] == "COMPLETED" for r in report), "members": report}
 
@@ -393,6 +423,7 @@ class Service:
                            "identity_verified": bool(c["identity_verified"]), "discovered_at": c["discovered_at"],
                            "completeness": candidate["snapshot"]["completeness"], "score": score, "run_id": run["run_id"] if run else None,
                            "scorer_profile_version": job["scorer_profile_version"], "evaluation_state": "COMPLETED" if run else (pending["state"] if pending else "WAITING_BATCH"),
+                           "harness": run["harness"] if run else None,
                            "error": json.loads(pending["error"]) if pending and pending["error"] else None, "actions": candidate["actions"]})
         # Keep distinct rubric/harness/quality cohorts; this is a review order, never a hiring decision.
         result.sort(key=lambda r: (r["job_id"], r["scorer_profile_version"], r["score"]["route"] if r["score"] else "WAITING",
@@ -407,6 +438,10 @@ class Service:
         for r in runs:
             for field in ("evaluation", "score", "metadata"):
                 r[field] = json.loads(r[field])
+        current = self.db.one("SELECT run_id FROM current_scores WHERE eval_key=?", (evaluation_key(job, candidate),))
+        for run in runs:
+            run["is_current"] = bool(current and run["run_id"] == current["run_id"])
+        runs.sort(key=lambda r: (r["is_current"], r["created_at"]), reverse=True)
         row = self.db.one("SELECT raw_text FROM resume_snapshots WHERE snapshot_id=?", (candidate["snapshot"]["snapshot_id"],))
         candidate.update({"job": job, "runs": runs, "raw_text": row["raw_text"], "synthetic": self.is_synthetic(cid),
                           "audit": self.db.all("SELECT actor,event,data,created_at FROM audit_events WHERE object_id IN (?,?) ORDER BY id DESC LIMIT 30", (cid, runs[0]["run_id"] if runs else cid))})
@@ -422,7 +457,8 @@ class Service:
         job, batch = json.loads(batch_row["profile"]), json.loads(batch_row["payload"])
         c = next(c for c in batch["candidates"] if c["candidate_id"] == old["candidate_id"])
         validate_member(job, c, evaluation)
-        score = calculate_score(job, c, evaluation)
+        identity = self.db.one("SELECT identity_verified FROM candidates WHERE candidate_id=?", (old["candidate_id"],))
+        score = calculate_score(job, c, evaluation, bool(identity["identity_verified"]))
         new = uid("run")
         with self.db.transaction() as con:
             current = con.execute("SELECT run_id FROM current_scores WHERE eval_key=?", (old["eval_key"],)).fetchone()
@@ -484,18 +520,22 @@ class Service:
         return {"status": "UNCONNECTED", "message": "下一次采集先核验账号身份。"}
 
     def reserve_budget(self, scope, maximum):
-        day = datetime.now(ZoneInfo(self.config["timezone"])).date().isoformat()
+        zone = ZoneInfo(self.config["timezone"])
+        today = datetime.fromtimestamp(now(), zone).date()
+        day = today.isoformat()
         with self.db.transaction() as con:
             row = con.execute("SELECT count FROM daily_budgets WHERE day=? AND scope=?", (day, scope)).fetchone()
             if row and row[0] >= maximum:
-                raise DomainError("BUDGET_EXHAUSTED", "今日预算已用完，明日再恢复。")
+                reset = datetime.combine(today + timedelta(days=1), day_time.min, zone).timestamp()
+                raise DomainError("BUDGET_EXHAUSTED", "今日预算已用完，将在配置时区的次日零点恢复。",
+                                  retryable=True, details={"scope": scope, "resumes_at": reset})
             con.execute("INSERT INTO daily_budgets VALUES (?,?,1) ON CONFLICT(day,scope) DO UPDATE SET count=count+1", (day, scope))
 
     def status(self):
         heartbeat = self.db.setting("worker_heartbeat")
         return {"server": {"version": "0.1.0", "time": iso()},
                 "worker": {"heartbeat": heartbeat, "alive": bool(heartbeat and now() - heartbeat["timestamp"] < 30)},
-                "harness": {"primary": self.config["harness"]["primary"], "enabled": self.config["harness"]["enabled"], "pause": self.db.setting("harness_pause"), "profile_version": self.profile_version()},
+                "harness": {"primary": self.config["harness"]["primary"], "enabled": self.config["harness"]["enabled"], "pause": self.db.setting("harness_pause"), "profile_version": self.profile_version(), "last_success": self.db.setting("harness_last_success")},
                 "accounts": self.db.all("SELECT * FROM accounts"), "jobs": len(self.jobs()),
                 "candidates": self.db.one("SELECT COUNT(*) n FROM candidates")["n"],
                 "batch_counts": self.db.all("SELECT state,COUNT(*) n FROM evaluation_batches GROUP BY state"),
@@ -521,12 +561,16 @@ class Service:
         if format == "csv":
             stream = io.StringIO()
             writer = csv.writer(stream)
-            writer.writerow(["候选人ID", "标识", "岗位", "证据下界", "可能上界", "信息覆盖率", "复核队列", "评分状态", "简历入口", "投递入口", "沟通入口", "评分版本"])
+            writer.writerow(["候选人ID", "标识", "岗位", "证据下界", "可能上界", "信息覆盖率", "复核队列", "评分状态", "简历入口", "投递入口", "沟通入口", "评分版本", "证据摘要", "信息缺口", "核实问题", "三类入口状态"])
             safe = lambda value: "'" + str(value) if str(value).lstrip().startswith(("=", "+", "-", "@", "\t", "\r")) else str(value)
             for row in rows:
                 score = row["score"] or {}
-                actions = {a["kind"]: a["state"] for a in row["actions"]}
-                writer.writerow([safe(v) for v in [row["candidate_id"], row["label"], row["job_title"], score.get("lower", ""), score.get("upper", ""), score.get("coverage", ""), score.get("route", ""), row["evaluation_state"], *[actions.get(k, "unavailable") for k in ("resume_view", "application_view", "chat_open")], row["scorer_profile_version"]]])
+                actions = {a["kind"]: a for a in row["actions"]}
+                e = json.loads(self.db.one("SELECT evaluation FROM evaluation_runs WHERE run_id=?", (row["run_id"],))["evaluation"]) if row["run_id"] else None
+                evidence = "；".join(ref["quote"] for c in e["criteria"] for ref in c["evidence_refs"]) if e else ""
+                missing = "；".join(t for c in e["criteria"] for t in c["missing_information"]) if e else ""
+                questions = "；".join(e["verification_questions"]) if e else ""
+                writer.writerow([safe(v) for v in [row["candidate_id"], row["label"], row["job_title"], score.get("lower", ""), score.get("upper", ""), score.get("coverage", ""), score.get("route", ""), row["evaluation_state"], *[actions.get(k, {}).get("handle_url", "") for k in ("resume_view", "application_view", "chat_open")], row["scorer_profile_version"], evidence, missing, questions, canonical({k:a["state"] for k,a in actions.items()})]])
             return "\ufeff" + stream.getvalue()
         text = ["# 招聘复核报告", "", "分数用于岗位证据复核；不是录用或淘汰决定。", ""]
         for row in rows:
@@ -545,6 +589,8 @@ class Service:
 
     def delete_candidate(self, cid):
         with self.db.transaction() as con:
+            if not con.execute("SELECT 1 FROM candidates WHERE candidate_id=?", (cid,)).fetchone():
+                raise DomainError("NOT_FOUND", "候选人不存在。", status=404)
             if con.execute("SELECT 1 FROM batch_members bm JOIN evaluation_batches b ON b.batch_id=bm.batch_id WHERE bm.candidate_id=? AND b.state='RUNNING'", (cid,)).fetchone():
                 raise DomainError("TASK_RUNNING", "请先停止评分器或等待任务结束后删除。", status=409)
             batches = list(con.execute("SELECT batch_id FROM batch_members WHERE candidate_id=?", (cid,)))
@@ -555,4 +601,9 @@ class Service:
                 con.execute("UPDATE evaluation_batches SET payload=? WHERE batch_id=?", (canonical(payload), row[0]))
             con.execute("DELETE FROM candidates WHERE candidate_id=?", (cid,))
             Database.audit(con, cid, "candidate_deleted", {"supplier_logs": "不属于本地数据库删除范围", "backup": "备份按保留期限清除"}, "workbench")
+        folder = self.runtime / "attachments"
+        if folder.exists():
+            for attachment in folder.iterdir():
+                if attachment.name.startswith(cid + "-attachment-") and attachment.is_file() and not attachment.is_symlink():
+                    attachment.unlink()
         return {"deleted": True}

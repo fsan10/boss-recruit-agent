@@ -11,7 +11,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from .common import ROOT, DomainError, canonical, iso
+from .common import ROOT, DomainError, canonical, iso, now
 from .scoring import native_codex_schema
 
 LIMIT = 12 * 1024 * 1024
@@ -30,9 +30,11 @@ def scoring_batch(batch):
 def build_prompt(job, batch, instructions=None):
     clean_job = {k: v for k, v in job.items() if k not in {"platform_job_id", "active", "approved_by"}}
     prompt = instructions or (ROOT / "prompts" / "evaluate_batch.md").read_text(encoding="utf-8")
+    job_json, batch_json = canonical(clean_job), canonical(scoring_batch(batch))
+    prompt = prompt.replace("{{JOB_JSON}}", "使用下文 JOB_JSON。") .replace("{{BATCH_JSON}}", "使用下文 BATCH_JSON。")
     return (prompt + "\n\n本任务所有数据已经提供。禁止调用任何工具或读文件；只输出契约 JSON。"
             " evidence_refs 的 quote 必须逐字复制本人的 evidence_blocks。不要在输出中写链接。"
-            "\n\nJOB_JSON\n" + canonical(clean_job) + "\n\nBATCH_JSON\n" + canonical(scoring_batch(batch)) +
+            + "\n\nJOB_JSON\n" + job_json + "\n\nBATCH_JSON\n" + batch_json +
             "\n\nEVALUATION_SCHEMA\n" + canonical(native_codex_schema()))
 
 
@@ -130,7 +132,7 @@ class HarnessAdapter:
             return {"harness": self.kind, "available": False, "authentication": "unknown", "unattended_ready": False,
                     "error": error.code if isinstance(error, DomainError) else "PROBE_TIMEOUT"}
 
-    def evaluate(self, job, batch, on_process=None):
+    def evaluate(self, job, batch, on_process=None, *, prompt_override=None, schema_override=None):
         exe = self.executable()
         if batch["mode"] != "synthetic" and not self.config["allowed_for_real_resumes"]:
             raise DomainError("DATA_PROCESSOR_NOT_ENABLED", "此 harness 尚未配置为允许处理真实简历。")
@@ -141,10 +143,11 @@ class HarnessAdapter:
         if self.kind == "dsh" and not self.config["dsh_config_dir"]:
             raise DomainError("CAPABILITY_UNAVAILABLE", "请配置专用 DSH_HOME；评分器不复用包含其他 MCP 和浏览器工具的配置目录。")
         started = time.monotonic()
+        started_wall = now()
         with tempfile.TemporaryDirectory(prefix="recruit-score-") as temp:
             cwd = Path(temp)
             final = cwd / "final.json"
-            prompt = build_prompt(job, batch)
+            prompt = prompt_override or build_prompt(job, batch)
             if self.kind == "dsh":
                 guard = cwd / "scoring.patch.yml"
                 guard.write_text("- insert:\n    - id: recruit-scoring-guard\n      name: " + json.dumps(str(ROOT / "config" / "scoring-guard.mjs")) + "\n", encoding="utf-8")
@@ -152,7 +155,7 @@ class HarnessAdapter:
                 input_text = prompt
             elif self.kind == "codex":
                 schema = cwd / "schema.json"
-                schema.write_text(canonical(native_codex_schema()), encoding="utf-8")
+                schema.write_text(canonical(native_codex_schema(schema_override)), encoding="utf-8")
                 argv = [exe, "exec", "--json", "--ephemeral", "--ignore-user-config", "--skip-git-repo-check", "--sandbox", "read-only",
                         "-c", "approval_policy=\"never\"", "-c", "web_search=\"disabled\"",
                         "--output-schema", str(schema), "--output-last-message", str(final)]
@@ -214,6 +217,6 @@ class HarnessAdapter:
             usage = next((e.get("usage") for e in reversed(events) if e.get("usage")), None)
             session = next((e.get("sessionId") or e.get("thread_id") for e in events if e.get("sessionId") or e.get("thread_id")), None)
             metadata = {"harness": self.kind, "harness_run_id": session, "model_id": self.config["model_id"] or "harness_default_unresolved",
-                        "started_at": iso(), "elapsed_seconds": round(time.monotonic() - started, 2), "usage": usage,
+                        "started_at": iso(started_wall), "ended_at": iso(), "elapsed_seconds": round(time.monotonic() - started, 2), "usage": usage,
                         "verification": "real_cli_execution", "input_mode": batch["mode"], "tools": "disabled_or_guard_denied"}
             return envelope, metadata
