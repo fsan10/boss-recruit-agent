@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0",
+  "job_id": "job-demo-001",
+  "jd_version": "jd-v1",
+  "rubric_version": "rubric-v1",
+  "scorer_profile_version": "dsh-evaluate-batch-v1-demo",
+  "is_synthetic": true,
+  "title": "AI 自动化工程师 示例岗位",
+  "jd_text": "虚构岗位：为内部业务构建 Python 自动化与数据工具，处理 API 和 SQL 数据，完成需求沟通、测试、部署、监控及交接。必须有 Python 自动化的具体实践证据，课程或个人作品可以作为等效证据；未记载时补充核实。用人决定由招聘人员作出。",
+  "rubric_status": "approved",
+  "approved_by": "synthetic-reviewer",
+  "criteria": [
+    {
+      "criterion_id": "core_skills",
+      "name": "核心技能实践",
+      "weight": 35,
+      "description": "针对 Python 自动化、数据处理和接口集成的实际工作能力。",
+      "anchors": {
+        "0": "明确表示尚未做过相关编程或自动化实践。",
+        "1": "仅列出 Python、SQL、API 等技能，没有实践过程。",
+        "2": "描述本人编写脚本、处理数据或集成接口的具体过程。",
+        "3": "完成有实际使用者的自动化交付，并能说明错误处理和维护。",
+        "4": "处理复杂接口或数据链路，说明边界、恢复机制、验证方式及实际使用情况。"
+      }
+    },
+    {
+      "criterion_id": "similar_work",
+      "name": "类似任务经验",
+      "weight": 25,
+      "description": "与内部工具、业务流程自动化及数据校验相关的任务经验。",
+      "anchors": {
+        "0": "明确说明未做过或尚不能提供相关实践。",
+        "1": "仅表述对自动化感兴趣或参加入门课程。",
+        "2": "有相关课程作品、实习任务或个人可演示项目。",
+        "3": "做过实际业务流程的自动化或数据工具并持续使用。",
+        "4": "完成多个相关场景或复杂流程，能说明业务口径与异常边界。"
+      }
+    },
+    {
+      "criterion_id": "delivery_ownership",
+      "name": "独立交付与维护",
+      "weight": 20,
+      "description": "本人承担需求、开发、测试、部署或维护的范围。",
+      "anchors": {
+        "0": "明确说明没有参与交付过程。",
+        "1": "只有参与团队项目的笼统描述，职责不清。",
+        "2": "有明确本人负责的开发或测试环节。",
+        "3": "覆盖需求到交付的大部分过程，说明维护责任。",
+        "4": "独立或主责完成闭环，说明监控、故障恢复、验证及长期维护。"
+      }
+    },
+    {
+      "criterion_id": "impact_evidence",
+      "name": "成果证据",
+      "weight": 10,
+      "description": "结果及可核实的评价方法，区分自述与独立核实。",
+      "anchors": {
+        "0": "明确说明尚未交付结果或项目未完成。",
+        "1": "笼统表示提高效率，没有交付或验证信息。",
+        "2": "有交付物、演示、日志或用户反馈可核实。",
+        "3": "描述使用结果及衡量方法，说明前后对比。",
+        "4": "同时给出结果、衡量口径、对比依据及本人贡献，可供进一步核验。"
+      }
+    },
+    {
+      "criterion_id": "collaboration",
+      "name": "协作与业务沟通证据",
+      "weight": 10,
+      "description": "针对需求沟通、说明文档、交接及协作的实际行为。",
+      "anchors": {
+        "0": "明确说明尚未参与任何协作或交接。",
+        "1": "仅自述沟通能力好，没有行为案例。",
+        "2": "有文档、沟通、协作或交接的具体描述。",
+        "3": "能说明如何对齐业务需求并完成交接或培训。",
+        "4": "说明跨角色问题处理、共同口径、交接反馈和持续改进。"
+      }
+    }
+  ],
+  "hard_gates": [
+    {
+      "gate_id": "python_practice",
+      "name": "Python 自动化实践证据",
+      "business_reason": "岗位需要编写和维护 Python 自动化脚本；允许通过课程或个人作品证明实践。",
+      "pass_rule": "原文明示本人完成 Python 脚本或相关自动化过程，可引用具体任务证据。",
+      "fail_rule": "原文明确表示没有 Python 编程或自动化实践；不得因未提及就判 fail。",
+      "unknown_rule": "仅列技能、未明确描述本人实践、文本不全或有矛盾。"
+    }
+  ],
+  "review_policy": {
+    "minimum_coverage": 0.8,
+    "high_priority_score": 80,
+    "standard_score": 65,
+    "score_formula_version": "weighted-evidence-v1",
+    "human_decision_required": true
+  },
+  "scoring_exclusions": [
+    "年龄及出生信息",
+    "性别",
+    "婚育",
+    "宗教",
+    "民族",
+    "健康",
+    "照片",
+    "姓名",
+    "籍贯",
+    "学校名气",
+    "公司品牌",
+    "技能关键词重复次数"
+  ]
+}

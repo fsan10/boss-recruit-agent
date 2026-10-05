@@ -1,0 +1,13 @@
+[project]
+name = "boss-recruit-agent"
+version = "0.1.0"
+description = "Evidence-based recruiting workbench powered by existing agent harnesses"
+requires-python = ">=3.12"
+dependencies = ["fastapi==0.142.2", "uvicorn==0.54.0", "jsonschema==4.26.0", "mcp==2.3.0", "pypdf==6.19.0", "python-docx==1.2.0", "pillow==12.3.0", "python-multipart==0.0.32"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 110

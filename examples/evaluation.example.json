@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "job_id": "job-demo-001",
+  "jd_version": "jd-v1",
+  "rubric_version": "rubric-v1",
+  "scorer_profile_version": "dsh-evaluate-batch-v1-demo",
+  "batch_id": "batch-demo-single",
+  "evaluations": [
+    {
+      "candidate_id": "candidate-001",
+      "snapshot_id": "snapshot-001-v1",
+      "snapshot_sha256": "f093103e84665ad45918952f7a0635715f2c9f1dc90cc88183b9e4b2612e31c3",
+      "criteria": [
+        {
+          "criterion_id": "core_skills",
+          "rating": 3,
+          "evidence_refs": [
+            {
+              "block_id": "C001-B01",
+              "quote": "使用 Python 开发内部数据处理脚本，集成 API 与 SQL，完成可重试任务和结果校验。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "格式示例：该原文支持对应岗位维度，实际等级须由评分器按启用锚点评估。",
+          "missing_information": []
+        },
+        {
+          "criterion_id": "similar_work",
+          "rating": 4,
+          "evidence_refs": [
+            {
+              "block_id": "C001-B02",
+              "quote": "完成两个实际流程的自动化，整理了字段口径、异常类型及人工回退路径。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "格式示例：该原文支持对应岗位维度，实际等级须由评分器按启用锚点评估。",
+          "missing_information": []
+        },
+        {
+          "criterion_id": "delivery_ownership",
+          "rating": 3,
+          "evidence_refs": [
+            {
+              "block_id": "C001-B03",
+              "quote": "本人负责需求确认、开发、测试、上线和后续维护，设置告警并处理过一次任务失败。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "格式示例：该原文支持对应岗位维度，实际等级须由评分器按启用锚点评估。",
+          "missing_information": []
+        },
+        {
+          "criterion_id": "impact_evidence",
+          "rating": 2,
+          "evidence_refs": [
+            {
+              "block_id": "C001-B04",
+              "quote": "结果由任务日志与使用人员确认，记录处理前后的耗时及统计方法。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "格式示例：该原文支持对应岗位维度，实际等级须由评分器按启用锚点评估。",
+          "missing_information": []
+        },
+        {
+          "criterion_id": "collaboration",
+          "rating": 3,
+          "evidence_refs": [
+            {
+              "block_id": "C001-B05",
+              "quote": "与使用部门共同确认字段含义，编写交接文档并培训操作人员。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "格式示例：该原文支持对应岗位维度，实际等级须由评分器按启用锚点评估。",
+          "missing_information": []
+        }
+      ],
+      "hard_gates": [
+        {
+          "gate_id": "python_practice",
+          "status": "pass",
+          "evidence_refs": [
+            {
+              "block_id": "C001-B01",
+              "quote": "使用 Python 开发内部数据处理脚本，集成 API 与 SQL，完成可重试任务和结果校验。",
+              "evidence_kind": "resume_claim"
+            }
+          ],
+          "reason": "原文明示本人使用 Python 完成脚本实践，仍属于待人工核实的简历自述。"
+        }
+      ],
+      "summary": "单人结构样例，仅供契约校验，不是十人的完整评分结果。",
+      "verification_questions": [
+        "可否演示一次失败任务的恢复与结果校验过程？"
+      ],
+      "message_draft": "您好，简历中的数据处理与异常恢复实践与岗位有关，方便补充一个具体案例吗？",
+      "action_refs": [
+        "action-001-resume_view",
+        "action-001-application_view",
+        "action-001-chat_open"
+      ],
+      "content_flags": []
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/contracts/batch.schema.json",
+  "title": "ResumeBatchV1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "batch_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "parent_batch_id": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "jd_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "rubric_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "scorer_profile_version": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+    },
+    "mode": {
+      "enum": [
+        "synthetic",
+        "live",
+        "manual"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "candidate_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "candidate_label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "account_id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+          },
+          "source_channel": {
+            "enum": [
+              "applications",
+              "existing_chat",
+              "recommendation",
+              "search",
+              "manual_import"
+            ]
+          },
+          "discovered_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snapshot": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "snapshot_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+              },
+              "snapshot_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "scoring_text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "completeness": {
+                "enum": [
+                  "full_text",
+                  "summary_only",
+                  "partial"
+                ]
+              },
+              "ocr_issues": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "minItems": 0,
+                "maxItems": 30
+              },
+              "evidence_blocks": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "block_id": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+                    },
+                    "text": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "source_locator": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "block_id",
+                    "text",
+                    "source_locator"
+                  ]
+                },
+                "minItems": 1,
+                "maxItems": 300
+              }
+            },
+            "required": [
+              "snapshot_id",
+              "snapshot_sha256",
+              "scoring_text",
+              "completeness",
+              "ocr_issues",
+              "evidence_blocks"
+            ]
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "action_id": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$"
+                },
+                "kind": {
+                  "enum": [
+                    "resume_view",
+                    "application_view",
+                    "chat_open"
+                  ]
+                },
+                "state": {
+                  "enum": [
+                    "available",
+                    "unavailable",
+                    "unverified",
+                    "expired"
+                  ]
+                },
+                "handle_url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "observed_platform_url": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "last_verified_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "action_id",
+                "kind",
+                "state",
+                "handle_url",
+                "observed_platform_url",
+                "last_verified_at"
+              ]
+            },
+            "minItems": 3,
+            "maxItems": 3
+          }
+        },
+        "required": [
+          "candidate_id",
+          "candidate_label",
+          "account_id",
+          "source_channel",
+          "discovered_at",
+          "snapshot",
+          "actions"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 10
+    }
+  },
+  "required": [
+    "schema_version",
+    "batch_id",
+    "parent_batch_id",
+    "job_id",
+    "jd_version",
+    "rubric_version",
+    "scorer_profile_version",
+    "mode",
+    "created_at",
+    "candidates"
+  ]
+}

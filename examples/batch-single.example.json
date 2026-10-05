@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.0",
+  "batch_id": "batch-demo-single",
+  "parent_batch_id": "batch-demo-10",
+  "job_id": "job-demo-001",
+  "jd_version": "jd-v1",
+  "rubric_version": "rubric-v1",
+  "scorer_profile_version": "dsh-evaluate-batch-v1-demo",
+  "mode": "synthetic",
+  "created_at": "2026-10-04T02:00:00Z",
+  "candidates": [
+    {
+      "candidate_id": "candidate-001",
+      "candidate_label": "合成同名标签",
+      "account_id": "account-demo-001",
+      "source_channel": "applications",
+      "discovered_at": "2026-10-04T01:40:00Z",
+      "snapshot": {
+        "snapshot_id": "snapshot-001-v1",
+        "snapshot_sha256": "f093103e84665ad45918952f7a0635715f2c9f1dc90cc88183b9e4b2612e31c3",
+        "scoring_text": "使用 Python 开发内部数据处理脚本，集成 API 与 SQL，完成可重试任务和结果校验。\n\n完成两个实际流程的自动化，整理了字段口径、异常类型及人工回退路径。\n\n本人负责需求确认、开发、测试、上线和后续维护，设置告警并处理过一次任务失败。\n\n结果由任务日志与使用人员确认，记录处理前后的耗时及统计方法。\n\n与使用部门共同确认字段含义，编写交接文档并培训操作人员。",
+        "evidence_blocks": [
+          {
+            "block_id": "C001-B01",
+            "text": "使用 Python 开发内部数据处理脚本，集成 API 与 SQL，完成可重试任务和结果校验。",
+            "source_locator": "synthetic-resume-001:paragraph-1"
+          },
+          {
+            "block_id": "C001-B02",
+            "text": "完成两个实际流程的自动化，整理了字段口径、异常类型及人工回退路径。",
+            "source_locator": "synthetic-resume-001:paragraph-2"
+          },
+          {
+            "block_id": "C001-B03",
+            "text": "本人负责需求确认、开发、测试、上线和后续维护，设置告警并处理过一次任务失败。",
+            "source_locator": "synthetic-resume-001:paragraph-3"
+          },
+          {
+            "block_id": "C001-B04",
+            "text": "结果由任务日志与使用人员确认，记录处理前后的耗时及统计方法。",
+            "source_locator": "synthetic-resume-001:paragraph-4"
+          },
+          {
+            "block_id": "C001-B05",
+            "text": "与使用部门共同确认字段含义，编写交接文档并培训操作人员。",
+            "source_locator": "synthetic-resume-001:paragraph-5"
+          }
+        ],
+        "completeness": "full_text",
+        "ocr_issues": []
+      },
+      "actions": [
+        {
+          "action_id": "action-001-resume_view",
+          "kind": "resume_view",
+          "state": "available",
+          "handle_url": "https://example.invalid/demo/actions/action-001-resume_view",
+          "observed_platform_url": null,
+          "last_verified_at": null
+        },
+        {
+          "action_id": "action-001-application_view",
+          "kind": "application_view",
+          "state": "available",
+          "handle_url": "https://example.invalid/demo/actions/action-001-application_view",
+          "observed_platform_url": null,
+          "last_verified_at": null
+        },
+        {
+          "action_id": "action-001-chat_open",
+          "kind": "chat_open",
+          "state": "available",
+          "handle_url": "https://example.invalid/demo/actions/action-001-chat_open",
+          "observed_platform_url": null,
+          "last_verified_at": null
+        }
+      ]
+    }
+  ]
+}

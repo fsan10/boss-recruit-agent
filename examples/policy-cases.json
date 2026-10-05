@@ -1,0 +1,282 @@
+{
+  "schema_version": "1.0",
+  "note": "算分器和关联校验的测试向量，不是已经运行的模型结果；用于模型复核路由的字母等级不表示招聘决定。",
+  "weights": [
+    35,
+    25,
+    20,
+    10,
+    10
+  ],
+  "rounding": "Decimal ROUND_HALF_UP to one decimal",
+  "cases": [
+    {
+      "case_id": "full_known",
+      "ratings": [
+        3,
+        4,
+        3,
+        2,
+        3
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 78.8,
+        "upper": 78.8,
+        "coverage": 1.0,
+        "route": "REVIEW_STANDARD"
+      }
+    },
+    {
+      "case_id": "known_80_percent",
+      "ratings": [
+        3,
+        4,
+        3,
+        null,
+        null
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 66.3,
+        "upper": 86.3,
+        "coverage": 0.8,
+        "route": "REVIEW_STANDARD"
+      }
+    },
+    {
+      "case_id": "low_coverage",
+      "ratings": [
+        3,
+        null,
+        3,
+        null,
+        null
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 41.3,
+        "upper": 86.3,
+        "coverage": 0.55,
+        "route": "NEEDS_INFORMATION"
+      }
+    },
+    {
+      "case_id": "high_priority",
+      "ratings": [
+        4,
+        3,
+        4,
+        3,
+        3
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 88.8,
+        "upper": 88.8,
+        "coverage": 1.0,
+        "route": "REVIEW_HIGH_PRIORITY"
+      }
+    },
+    {
+      "case_id": "all_unknown",
+      "ratings": [
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      "gate_status": "unknown",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 0.0,
+        "upper": 100.0,
+        "coverage": 0.0,
+        "route": "NEEDS_INFORMATION",
+        "display_single_score": false
+      }
+    },
+    {
+      "case_id": "explicit_gate_gap",
+      "ratings": [
+        0,
+        1,
+        1,
+        0,
+        1
+      ],
+      "gate_status": "fail",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 13.8,
+        "upper": 13.8,
+        "coverage": 1.0,
+        "route": "REVIEW_REQUIREMENT_GAP"
+      }
+    },
+    {
+      "case_id": "partial_text",
+      "ratings": [
+        4,
+        3,
+        4,
+        3,
+        3
+      ],
+      "gate_status": "pass",
+      "completeness": "partial",
+      "flags": [],
+      "expected": {
+        "lower": 88.8,
+        "upper": 88.8,
+        "coverage": 1.0,
+        "route": "NEEDS_INFORMATION"
+      }
+    },
+    {
+      "case_id": "unresolved_gate",
+      "ratings": [
+        4,
+        3,
+        4,
+        3,
+        3
+      ],
+      "gate_status": "unknown",
+      "completeness": "full_text",
+      "flags": [],
+      "expected": {
+        "lower": 88.8,
+        "upper": 88.8,
+        "coverage": 1.0,
+        "route": "NEEDS_INFORMATION"
+      }
+    },
+    {
+      "case_id": "conflicting_evidence",
+      "ratings": [
+        4,
+        3,
+        4,
+        3,
+        3
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [
+        "text_conflict"
+      ],
+      "expected": {
+        "lower": 88.8,
+        "upper": 88.8,
+        "coverage": 1.0,
+        "route": "NEEDS_INFORMATION"
+      }
+    },
+    {
+      "case_id": "injection_flag_is_not_penalty",
+      "ratings": [
+        3,
+        4,
+        3,
+        2,
+        3
+      ],
+      "gate_status": "pass",
+      "completeness": "full_text",
+      "flags": [
+        "prompt_injection_detected"
+      ],
+      "expected": {
+        "lower": 78.8,
+        "upper": 78.8,
+        "coverage": 1.0,
+        "route": "REVIEW_STANDARD"
+      }
+    }
+  ],
+  "identity_and_output_cases": [
+    {
+      "case_id": "reversed_order",
+      "mutation": "Reverse evaluations array",
+      "expected": "Map by candidate_id; no action swaps"
+    },
+    {
+      "case_id": "duplicate_id",
+      "mutation": "Two evaluations have candidate-001",
+      "expected": "Reject ambiguous duplicate members"
+    },
+    {
+      "case_id": "unknown_id",
+      "mutation": "An evaluation uses candidate-999",
+      "expected": "Reject unknown member"
+    },
+    {
+      "case_id": "cross_candidate_quote",
+      "mutation": "candidate-002 cites C001-B01",
+      "expected": "Reject candidate-002 with EVIDENCE_INVALID"
+    },
+    {
+      "case_id": "modified_quote",
+      "mutation": "Quote invents an outcome absent in the cited block",
+      "expected": "Reject with EVIDENCE_INVALID"
+    },
+    {
+      "case_id": "forged_action",
+      "mutation": "candidate-002 refers action-001-chat_open",
+      "expected": "Reject foreign action reference"
+    },
+    {
+      "case_id": "stale_hash",
+      "mutation": "Replace a snapshot hash with an older value",
+      "expected": "Do not publish current score"
+    },
+    {
+      "case_id": "missing_member",
+      "mutation": "Only eight of ten evaluations returned",
+      "expected": "Accept validated eight; retry missing two only"
+    },
+    {
+      "case_id": "expired_link",
+      "mutation": "Action state expired and refreshing cannot verify identity",
+      "expected": "ACTION_EXPIRED or IDENTITY_UNVERIFIED; do not guess target"
+    },
+    {
+      "case_id": "lost_send_response",
+      "mutation": "Platform write may have succeeded but response is lost",
+      "expected": "OUTCOME_UNKNOWN; no automatic resend"
+    },
+    {
+      "case_id": "lease_fencing",
+      "mutation": "Old worker submits after a newer lease is claimed",
+      "expected": "LEASE_LOST; current result remains unchanged"
+    },
+    {
+      "case_id": "sensitive_attribute_change",
+      "mutation": "Change only raw age, gender, marital or photo attributes",
+      "expected": "Blind scoring snapshot and dimensions unchanged"
+    }
+  ],
+  "hash_algorithm": {
+    "encoding": "UTF-8",
+    "payload_keys": [
+      "scoring_text",
+      "evidence_blocks",
+      "completeness",
+      "ocr_issues"
+    ],
+    "json": "ensure_ascii=false, sort_keys=true, separators=(comma, colon); no trailing newline in hashed bytes",
+    "normalization": "Fixture text is already normalized; production must normalize text before building immutable evidence blocks and this payload."
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "note": "基于锁定 CLI 的接口组织；字段必须用当前账号的脱敏响应核验。缺失时返回 FIELD_MAPPING_REQUIRED，不猜同名或页面位置。",
+  "applications": {"list_path": "friendList", "platform_id": "geekId", "geek_id": "encryptGeekId", "friend_id": "friendId", "security_id": "securityId", "job_id": "encryptJobId", "label": "name"},
+  "existing_chat": {"list_path": "friendList", "platform_id": "geekId", "geek_id": "encryptGeekId", "friend_id": "friendId", "security_id": "securityId", "job_id": "encryptJobId", "label": "name"},
+  "recommendation": {"list_path": "geekList", "platform_id": "geekId", "geek_id": "encryptGeekId", "friend_id": "friendId", "security_id": "securityId", "job_id": "encryptJobId", "label": "geekName"},
+  "current_account_path": "user.encryptUid"
+}

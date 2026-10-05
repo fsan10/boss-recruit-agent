@@ -1,0 +1,21 @@
+{
+  "timezone": "Asia/Shanghai",
+  "harness": {
+    "primary": "dsh", "enabled": false, "model_id": "", "timeout_seconds": 600,
+    "context_tokens": 128000, "context_budget_ratio": 0.7, "max_runs_per_day": 20,
+    "allowed_for_real_resumes": false,
+    "executables": {"dsh": "dsh", "codex": "codex", "opencode": "opencode"},
+    "dsh_config_dir": "", "dsh_profile": "headless", "dsh_tools_disabled_verified": false,
+    "opencode_tools_disabled_verified": false
+  },
+  "platform": {
+    "executable": "boss", "data_dir": "", "live_enabled": false,
+    "active_sourcing_enabled": false, "poll_seconds": 900,
+    "min_read_interval_seconds": 3, "operation_budget_per_day": 300,
+    "new_resume_budget_per_day": 60, "expected_account_id": "",
+    "pinned_commit": "74754f5ba368450d71e769abfec76c98709e593f"
+  },
+  "queue": {"batch_size": 10, "batch_max_wait_seconds": 180, "lease_seconds": 90, "heartbeat_seconds": 15, "pending_resume_backpressure": 100, "max_attempts": 3},
+  "actions": {"send_enabled": false, "approval_expiry_hours": 24},
+  "privacy": {"raw_resume_retention_days": 30, "evaluation_retention_days": 90, "screenshot_retention_days": 7}
+}

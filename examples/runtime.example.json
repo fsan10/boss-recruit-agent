@@ -1,0 +1,68 @@
+{
+  "schema_version": "1.0",
+  "timezone": "Asia/Shanghai",
+  "deployment": "single_host",
+  "platform": {
+    "adapter": "boss_agent_cli",
+    "repository": "can4hou6joeng4/boss-agent-cli",
+    "pinned_commit": "74754f5ba368450d71e769abfec76c98709e593f",
+    "live_enabled": false,
+    "active_sourcing_enabled": false,
+    "account_concurrency": 1,
+    "poll_seconds": 900,
+    "min_read_interval_seconds": 3,
+    "new_resume_budget_per_day": 60,
+    "operation_budget_per_day": 300,
+    "operation_budget_unit": "application_operation_not_http_request",
+    "stop_on_risk": true
+  },
+  "harness": {
+    "primary": "dsh",
+    "secondary": null,
+    "automatic_failover_enabled": false,
+    "pinned_reference_commit": "5badb15009ae1756c3afe0ae0cef1faafc290ccc",
+    "argv_template": [
+      "dsh",
+      "--profile",
+      "headless",
+      "--json"
+    ],
+    "input_channel": "stdin",
+    "model_id": null,
+    "model_must_be_configured": true,
+    "tool_scope": "none_or_batch_read_only_after_probe",
+    "score_concurrency": 1,
+    "timeout_seconds": 600,
+    "max_attempts": 3,
+    "context_budget_ratio": 0.7,
+    "money_budget_per_day": null,
+    "token_budget_per_day": null,
+    "budget_must_be_set_before_unattended_live": true
+  },
+  "queue": {
+    "batch_size": 10,
+    "batch_max_wait_seconds": 180,
+    "lease_seconds": 90,
+    "heartbeat_seconds": 15,
+    "pending_resume_backpressure": 100
+  },
+  "actions": {
+    "drafts_enabled": true,
+    "automatic_send_enabled": false,
+    "human_approval_required": true,
+    "write_auto_retries": 0,
+    "approved_action_expiry_hours": 24
+  },
+  "privacy": {
+    "raw_resume_retention_days": 30,
+    "screenshot_retention_days": 7,
+    "evaluation_retention_days": 90,
+    "raw_text_in_logs": false,
+    "credentials_in_scoring_input": false
+  },
+  "ui": {
+    "show_synthetic_badge": true,
+    "show_unknown_interval": true,
+    "hide_single_score_when_all_unknown": true
+  }
+}
